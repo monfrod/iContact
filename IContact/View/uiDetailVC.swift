@@ -34,6 +34,8 @@ extension detailVC {
         
         messageButton.addTarget(self, action: #selector(sendMessage), for: .touchUpInside)
         callButton.addTarget(self, action: #selector(callTapped), for: .touchUpInside)
+        faceTimeButton.addTarget(self, action: #selector(facetimeCallTapped), for: .touchUpInside)
+        emailButton.isSpringLoaded = true
         
         phoneView.backgroundColor = .white
         phoneView.layer.cornerRadius = 10
@@ -53,7 +55,7 @@ extension detailVC {
         ])
 
         let attributeString = NSMutableAttributedString(
-            string: phone,
+            string: contact!.phone!,
             attributes: attrString
         )
         
@@ -73,7 +75,6 @@ extension detailVC {
         
         
         
-        nameLabel.text = "Yunus Lalazov"
         nameLabel.textColor = .black
         nameLabel.font = UIFont.systemFont(ofSize: 20, weight: .medium)
         nameLabel.textAlignment = .center
@@ -94,10 +95,42 @@ extension detailVC {
         deleteButton.addTarget(self, action: #selector(deleteContactTapped), for: .touchUpInside)
         view.addSubview(deleteButton)
         
+        progressViewTimer.progress = 1
+        progressViewTimer.progressTintColor = .red
+        progressViewTimer.isHidden = true
+        progressViewTimer.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(progressViewTimer)
         
+        firstLetterNameSurnameLabel.text = contact!.name!.first!.uppercased() + contact!.surname!.first!.uppercased()
+        firstLetterNameSurnameLabel.textColor = .customGray
+        firstLetterNameSurnameLabel.textAlignment = .center
+        firstLetterNameSurnameLabel.font = UIFont.systemFont(ofSize: 30, weight: .bold)
+        firstLetterNameSurnameLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        forImageView.addSubview(firstLetterNameSurnameLabel)
+        forImageView.backgroundColor = .darkGray
+        forImageView.layer.cornerRadius = 50
+        forImageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        view.addSubview(forImageView)
+        
+        
+        
+        numberButton.setTitle(contact?.phone!, for: .normal)
+        nameLabel.text = contact!.name! + " " + contact!.surname!
         
         NSLayoutConstraint.activate([
-            nameLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
+            progressViewTimer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            progressViewTimer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            progressViewTimer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            progressViewTimer.heightAnchor.constraint(equalToConstant: 10),
+            
+            forImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            forImageView.topAnchor.constraint(equalTo: progressViewTimer.bottomAnchor, constant: 40),
+            forImageView.widthAnchor.constraint(equalToConstant: 100),
+            forImageView.heightAnchor.constraint(equalToConstant: 100),
+            
+            nameLabel.topAnchor.constraint(equalTo: forImageView.safeAreaLayoutGuide.bottomAnchor, constant: 50),
             nameLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             HStack.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 30),
             HStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
@@ -110,7 +143,9 @@ extension detailVC {
             deleteButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
             deleteButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             deleteButton.topAnchor.constraint(equalTo: phoneView.bottomAnchor, constant: 30),
-            deleteButton.heightAnchor.constraint(equalToConstant: 50)
+            deleteButton.heightAnchor.constraint(equalToConstant: 50),
+            firstLetterNameSurnameLabel.centerXAnchor.constraint(equalTo: forImageView.centerXAnchor),
+            firstLetterNameSurnameLabel.centerYAnchor.constraint(equalTo: forImageView.centerYAnchor)
         ])
     }
 }

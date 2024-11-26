@@ -17,12 +17,18 @@ extension ViewController {
         tableView.backgroundColor = .customGray
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        
+        refreshControl.tintColor = .black
+        refreshControl.addTarget(self, action: #selector(refrechingTableView), for: UIControl.Event.valueChanged)
+        tableView.refreshControl = refreshControl
+        
         view.addSubview(tableView)
         
         segment.insertSegment(withTitle: "First Name", at: 0, animated: true)
         segment.insertSegment(withTitle: "Last Name", at: 1, animated: true)
         segment.selectedSegmentIndex = 0
         segment.selectedSegmentTintColor = .systemBlue
+        segment.addTarget(self, action: #selector(segmentedChanged), for: .valueChanged)
         segment.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(segment)
             

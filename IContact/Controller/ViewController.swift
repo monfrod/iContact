@@ -15,30 +15,57 @@ class ViewController: UIViewController {
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     let segment = UISegmentedControl()
     var models = [Contact]()
-    var allContactName: [String] = []
-    var allContactSurname: [String] = []
-    var groupedContactName: [String: [String]] = [:]
-    var groupedContactSurname: [String: [String]] = [:]
+    var groupedContactName: [String: [Contact]] = [:]
+    var groupedContactSurname: [String: [Contact]] = [:]
     var sectionTitlesName: [String] = []
     var sectionTitlesSurname: [String] = []
     
+    var sectionTitle: [String] = []
+    var groupedContact: [String: [Contact]] = [:]
+    
+    var segmentedIndex: Int = 0
+    var refreshControl: UIRefreshControl = UIRefreshControl()
     
     
     
     override func viewDidLoad() {
         self.navigationItem.rightBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "plus"), style: .plain, target: self, action: #selector(addContact))
         navigationController?.navigationBar.titleTextAttributes = [.foregroundColor: UIColor.black]
-        tableView.reloadData()
         setupUI()
     }
     
     override func viewWillAppear(_ animated: Bool) {
+        getAllContact()
+        makeEmptyContact()
+        initGroupedContacts()
+        if segmentedIndex == 0{
+            groupedContact = groupedContactName
+            sectionTitle = sectionTitlesName
+        } else {
+            groupedContact = groupedContactSurname
+            sectionTitle = sectionTitlesSurname
+        }
+        tableView.reloadData()
+        
+    }
+    
+    @objc func refrechingTableView(){
         DispatchQueue.global().async {
             self.getAllContact()
             self.makeEmptyContact()
             self.initGroupedContacts()
+            if self.segmentedIndex == 0{
+                self.groupedContact = self.groupedContactName
+                self.sectionTitle = self.sectionTitlesName
+            } else {
+                self.groupedContact = self.groupedContactSurname
+                self.sectionTitle = self.sectionTitlesSurname
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.tableView.reloadData()
+                self.refreshControl.endRefreshing()
+            }
         }
-        tableView.reloadData()
     }
     
     @objc func addContact() {
@@ -70,6 +97,13 @@ class ViewController: UIViewController {
                     self.createNewContact(name: name, surname: surname, phone: phone)
                     self.makeEmptyContact()
                     self.initGroupedContacts()
+                    if self.segmentedIndex == 0{
+                        self.groupedContact = self.groupedContactName
+                        self.sectionTitle = self.sectionTitlesName
+                    } else {
+                        self.groupedContact = self.groupedContactSurname
+                        self.sectionTitle = self.sectionTitlesSurname
+                    }
                     DispatchQueue.main.async {
                         self.tableView.reloadData()
                     }
@@ -92,6 +126,19 @@ class ViewController: UIViewController {
         }
     }
     
+    @objc func segmentedChanged(){
+        segmentedIndex = segment.selectedSegmentIndex
+        if segmentedIndex == 0{
+            groupedContact = groupedContactName
+            sectionTitle = sectionTitlesName
+            updateUI()
+        } else {
+            groupedContact = groupedContactSurname
+            sectionTitle = sectionTitlesSurname
+            updateUI()
+        }
+    }
+    
 }
 
 
@@ -99,12 +146,17 @@ class ViewController: UIViewController {
 extension ViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
-        let sectionTitleName = sectionTitlesName[indexPath.section]
         cell.backgroundColor = .customGray
         cell.textLabel?.textColor = .black
-        let contactName = groupedContactName[sectionTitleName]?[indexPath.row]
-        
-        cell.textLabel?.text = contactName
+        let sectionTitleName = sectionTitle[indexPath.section]
+        if let contact = groupedContact[sectionTitleName]?[indexPath.row] {
+            if segmentedIndex == 0{
+                cell.textLabel?.text = contact.name! + " " + contact.surname!
+            } else {
+                cell.textLabel?.text = contact.surname! + " " + contact.name!
+            }
+            return cell
+        }
         return cell
     }
     
@@ -115,55 +167,53 @@ extension ViewController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        let sectionTitle = sectionTitlesName[section]
-        return groupedContactName[sectionTitle]?.count ?? 0
+        let sectionTitle = sectionTitle[section]
+        return groupedContact[sectionTitle]?.count ?? 0
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let sectionTitleName = sectionTitlesName[indexPath.section]
-        if let contactName = groupedContactName[sectionTitleName]?[indexPath.row] {
-            if let selectedContact = models.first(where: {
-                "\($0.name ?? "") \($0.surname ?? "")" == contactName
-            }) {
-                let vc = detailVC()
-                vc.name = selectedContact.name! + " " + selectedContact.surname!
-                vc.phone = selectedContact.phone ?? ""
-                navigationController?.pushViewController(vc, animated: true)
-            }
+        let sectionTitleName = sectionTitle[indexPath.section]
+        if let contact = groupedContact[sectionTitleName]?[indexPath.row] {
+            let vc = detailVC()
+            vc.contact = contact
+            navigationController?.pushViewController(vc, animated: true)
         }
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
-        return sectionTitlesName.count
+        return sectionTitle.count
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        return sectionTitlesName[section]
+        return sectionTitle[section]
     }
     
     func sectionIndexTitles(for tableView: UITableView) -> [String]? {
-        return sectionTitlesName
+        return sectionTitle
     }
     
     //swipeDelete
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
-            let sectionTitleName = sectionTitlesName[indexPath.section]
-            if let contactName = groupedContactName[sectionTitleName]?[indexPath.row] {
-                if let selectedContact = models.first(where: {
-                    "\($0.name ?? "") \($0.surname ?? "")" == contactName
-                }) {
-                    deleteContact(contact: selectedContact)
-                    groupedContactName[sectionTitleName]?.remove(at: indexPath.row)
-                    tableView.deleteRows(at: [indexPath], with: .fade)
-                    DispatchQueue.global().async {
-                        self.getAllContact()
-                        self.makeEmptyContact()
-                        self.initGroupedContacts()
-                        DispatchQueue.main.async {
-                            self.tableView.reloadData()
-                        }
+            let sectionTitleName = sectionTitle[indexPath.section]
+            if let contact = groupedContact[sectionTitleName]?[indexPath.row] {
+                deleteContact(contact: contact)
+                groupedContact[sectionTitleName]?.remove(at: indexPath.row)
+                tableView.deleteRows(at: [indexPath], with: .fade)
+                DispatchQueue.global().async {
+                    self.getAllContact()
+                    self.makeEmptyContact()
+                    self.initGroupedContacts()
+                    if self.segmentedIndex == 0{
+                        self.groupedContact = self.groupedContactName
+                        self.sectionTitle = self.sectionTitlesName
+                    } else {
+                        self.groupedContact = self.groupedContactSurname
+                        self.sectionTitle = self.sectionTitlesSurname
+                    }
+                    DispatchQueue.main.async {
+                        self.tableView.reloadData()
                     }
                 }
             }
@@ -173,7 +223,7 @@ extension ViewController: UITableViewDataSource, UITableViewDelegate {
 
 // MARK: CoreData func
 extension ViewController{
-    func createNewContact(name: String, surname: String, phone: String){
+    public func createNewContact(name: String, surname: String, phone: String){
         let newContact = Contact(context: context)
         newContact.name = name
         newContact.surname = surname
@@ -187,7 +237,7 @@ extension ViewController{
         }
     }
     
-    func getAllContact(){
+    public func getAllContact(){
         let fetchingContact = Contact.fetchRequest()
         do {
             models = try context.fetch(fetchingContact)
@@ -196,7 +246,7 @@ extension ViewController{
         }
     }
     
-    func deleteContact(contact: Contact){
+    public func deleteContact(contact: Contact){
         context.delete(contact)
         
         do{
@@ -205,42 +255,57 @@ extension ViewController{
             print("Error delete item")
         }
     }
+    
+    public func updateItem(updatedContact: Contact, newName: String, newSurname: String, newPhone: String){
+        updatedContact.name = newName
+        updatedContact.surname = newSurname
+        updatedContact.phone = newPhone
+        
+        do{
+            try context.save()
+            getAllContact()
+        } catch {
+            print("Error update contact")
+        }
+    }
 }
 
 //MARK: GroupedContact
 extension ViewController{
     func initGroupedContacts(){
-        for i in 0..<models.count {
-            allContactName.append(models[i].name! + " " + models[i].surname!)
-        }
-        for i in 0..<models.count {
-            allContactSurname.append(models[i].surname! + " " + models[i].name!)
-        }
-        for contact in allContactName {
-            let firstLetter = String(contact.first!.uppercased())
+        for contact in models {
+            let firstLetter = String(contact.name!.first!.uppercased())
             if groupedContactName[firstLetter] == nil {
                 groupedContactName[firstLetter] = []
             }
             groupedContactName[firstLetter]?.append(contact)
         }
-        for contact in allContactSurname {
-            let firstLetter = String(contact.first!.uppercased())
+        for contact in models {
+            let firstLetter = String(contact.surname!.first!.uppercased())
             if groupedContactSurname[firstLetter] == nil {
                 groupedContactSurname[firstLetter] = []
             }
             groupedContactSurname[firstLetter]?.append(contact)
         }
-    
         sectionTitlesName = groupedContactName.keys.sorted()
         sectionTitlesSurname = groupedContactSurname.keys.sorted()
         
     }
     func makeEmptyContact(){
-        allContactName.removeAll()
-        allContactSurname.removeAll()
         groupedContactName.removeAll()
         groupedContactSurname.removeAll()
         sectionTitlesName.removeAll()
         sectionTitlesSurname.removeAll()
+    }
+    
+    func updateUI(){
+        DispatchQueue.global().async {
+            self.getAllContact()
+            self.makeEmptyContact()
+            self.initGroupedContacts()
+            DispatchQueue.main.async {
+                self.tableView.reloadData()
+            }
+        }
     }
 }
